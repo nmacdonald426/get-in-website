@@ -268,6 +268,11 @@ export default function Home() {
 
         {authLoading ? (
           <p className="muted center">Loading Get in…</p>
+        ) : view === "reset" ? (
+          // The new-password form comes first: a visitor arriving on a
+          // reset link is signed in but has no profile row yet, so the
+          // "finish your profile" screen would otherwise win over it.
+          <ResetPasswordPanel onDone={handleResetDone} />
         ) : view === "auth" || needsProfile ? (
           <AuthPanel
             key={authInitialMode}
@@ -309,8 +314,6 @@ export default function Home() {
           <PrivacyPage />
         ) : view === "delete" ? (
           <DeleteAccountPage />
-        ) : view === "reset" ? (
-          <ResetPasswordPanel onDone={handleResetDone} />
         ) : (
           <ClientSearch profile={profile} onNeedSignIn={goAuth} />
         )}
