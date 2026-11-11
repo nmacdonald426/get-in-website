@@ -138,12 +138,18 @@ export default function Home() {
       return;
     }
     const supabase = getSupabase();
-    supabase.auth.getSession().then(async ({ data }) => {
-      const sessionUser = data.session?.user ?? null;
-      setUser(sessionUser);
-      if (sessionUser) await loadProfile(sessionUser.id);
-      setAuthLoading(false);
-    });
+    // If the visitor arrived via a password-reset email link, Supabase puts
+    // type=recovery in the page address. Check it right away: the recovery
+    // event can fire before our listener below is attached, which used to
+    // leave visitors on the sign-up screen instead of the new-password form.
+    if (
+      typeof window !== "undefined" &&
+      window.location.hash.includes("type=recovery")
+    ) {
+      setView("reset");
+    }
+    // Subscribe BEFORE asking for the session, so the recovery event (and
+    // the initial session) reaches this listener instead of firing early.
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const sessionUser = session?.user ?? null;
@@ -159,6 +165,12 @@ export default function Home() {
         }
       }
     );
+    supabase.auth.getSession().then(async ({ data }) => {
+      const sessionUser = data.session?.user ?? null;
+      setUser(sessionUser);
+      if (sessionUser) await loadProfile(sessionUser.id);
+      setAuthLoading(false);
+    });
     return () => listener.subscription.unsubscribe();
   }, [loadProfile]);
 
