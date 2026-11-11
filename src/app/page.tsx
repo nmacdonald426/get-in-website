@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { getSupabase, supabaseConfigured } from "../lib/supabase";
 import type { Profile } from "../lib/types";
@@ -10,13 +10,117 @@ import MyBookings from "../components/MyBookings";
 import ProviderDashboard from "../components/ProviderDashboard";
 import { DeleteAccountPage, PrivacyPage } from "../components/StaticPages";
 
-type View = "home" | "auth" | "provider" | "bookings" | "privacy" | "delete";
+type View = "home" | "auth" | "provider" | "bookings" | "privacy" | "delete" | "reset";
+
+/**
+ * Shown when the visitor taps a password-reset link from their email.
+ * Supabase fires a PASSWORD_RECOVERY event and gives them a short-lived
+ * session, so updateUser can set the new password.
+ */
+function ResetPasswordPanel({ onDone }: { onDone: () => void }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    if (newPassword.length < 6) {
+      setError("Your new password needs at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("The two passwords do not match. Please type them again.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error: updateError } = await getSupabase().auth.updateUser({
+        password: newPassword,
+      });
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+      setMessage("Your password is changed — please sign in with your new password.");
+      // Leave the short-lived recovery session behind so the next
+      // sign-in starts clean.
+      await getSupabase().auth.signOut();
+      timer.current = setTimeout(onDone, 2500);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card auth-card">
+      <h2>Choose a new password</h2>
+      <p className="muted">
+        Pick a new password for your Get in account. It needs at least 6
+        characters.
+      </p>
+      <form onSubmit={handleSubmit}>
+        <div className="field">
+          <label htmlFor="reset-new-password">New password</label>
+          <input
+            id="reset-new-password"
+            type="password"
+            required
+            minLength={6}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="At least 6 characters"
+            autoComplete="new-password"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="reset-confirm-password">Type it again</label>
+          <input
+            id="reset-confirm-password"
+            type="password"
+            required
+            minLength={6}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Same password again"
+            autoComplete="new-password"
+          />
+        </div>
+        {error && <p className="error">{error}</p>}
+        {message && <p className="success">{message}</p>}
+        <button type="submit" className="btn-primary" disabled={busy || Boolean(message)}>
+          {busy ? "Please wait…" : message ? "Password changed ✓" : "Save new password"}
+        </button>
+      </form>
+      {message && (
+        <p className="muted center">
+          <button type="button" className="link" onClick={onDone}>
+            Sign in now →
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [view, setView] = useState<View>("home");
   const [authLoading, setAuthLoading] = useState(true);
+  const [authInitialMode, setAuthInitialMode] = useState<"signin" | "signup">(
+    "signup"
+  );
 
   const loadProfile = useCallback(async (userId: string) => {
     const supabase = getSupabase();
@@ -41,13 +145,17 @@ export default function Home() {
       setAuthLoading(false);
     });
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         const sessionUser = session?.user ?? null;
         setUser(sessionUser);
         if (sessionUser) {
           await loadProfile(sessionUser.id);
         } else {
           setProfile(null);
+        }
+        // A password-reset link was tapped: show the new-password form.
+        if (event === "PASSWORD_RECOVERY") {
+          setView("reset");
         }
       }
     );
@@ -67,6 +175,12 @@ export default function Home() {
   }
 
   function goAuth() {
+    setAuthInitialMode("signin");
+    setView("auth");
+  }
+
+  function handleResetDone() {
+    setAuthInitialMode("signin");
     setView("auth");
   }
 
@@ -144,6 +258,8 @@ export default function Home() {
           <p className="muted center">Loading Get in…</p>
         ) : view === "auth" || needsProfile ? (
           <AuthPanel
+            key={authInitialMode}
+            initialMode={authInitialMode}
             user={user}
             profile={profile}
             onProfileReady={handleProfileReady}
@@ -169,6 +285,8 @@ export default function Home() {
             <MyBookings profile={profile} />
           ) : (
             <AuthPanel
+              key={authInitialMode}
+              initialMode={authInitialMode}
               user={user}
               profile={profile}
               onProfileReady={handleProfileReady}
@@ -179,6 +297,8 @@ export default function Home() {
           <PrivacyPage />
         ) : view === "delete" ? (
           <DeleteAccountPage />
+        ) : view === "reset" ? (
+          <ResetPasswordPanel onDone={handleResetDone} />
         ) : (
           <ClientSearch profile={profile} onNeedSignIn={goAuth} />
         )}
