@@ -10,6 +10,8 @@ interface AuthPanelProps {
   profile: Profile | null;
   onProfileReady: (profile: Profile) => void;
   onNavigateHome: () => void;
+  /** Which tab the panel opens on (defaults to sign-up). */
+  initialMode?: "signin" | "signup";
 }
 
 /**
@@ -23,8 +25,11 @@ export default function AuthPanel({
   profile,
   onProfileReady,
   onNavigateHome,
+  initialMode,
 }: AuthPanelProps) {
-  const [mode, setMode] = useState<"signin" | "signup">("signup");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(
+    initialMode ?? "signup"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -133,15 +138,41 @@ export default function AuthPanel({
     }
   }
 
+  async function handleForgotSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    if (!email.trim()) {
+      setError("Please enter your email address first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error: resetError } =
+        await getSupabase().auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: "https://get-in-website.vercel.app",
+        });
+      if (resetError) {
+        setError(resetError.message);
+        return;
+      }
+      setMessage("Check your email — we sent you a reset link.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="card auth-card">
-      <h2>{needsProfile ? "Finish your profile" : mode === "signup" ? "Create your account" : "Welcome back"}</h2>
+      <h2>{needsProfile ? "Finish your profile" : mode === "signup" ? "Create your account" : mode === "forgot" ? "Reset your password" : "Welcome back"}</h2>
       <p className="muted">
         {needsProfile
           ? "You are signed in. Tell us a little more so your bookings have a name on them."
           : mode === "signup"
             ? "Clients are always free. Providers will pay $9 a month later — nothing is charged in this test version."
-            : "Sign in with the email and password you used before."}
+            : mode === "forgot"
+              ? "Enter the email you signed up with and we will send you a link to choose a new password."
+              : "Sign in with the email and password you used before."}
       </p>
 
       {needsProfile && (
@@ -166,7 +197,7 @@ export default function AuthPanel({
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={mode === "forgot" ? handleForgotSubmit : handleSubmit}>
         {!needsProfile && (
           <>
             <div className="field">
@@ -181,19 +212,36 @@ export default function AuthPanel({
                 autoComplete="email"
               />
             </div>
-            <div className="field">
-              <label htmlFor="auth-password">Password</label>
-              <input
-                id="auth-password"
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              />
-            </div>
+            {mode !== "forgot" && (
+              <div className="field">
+                <label htmlFor="auth-password">Password</label>
+                <input
+                  id="auth-password"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                />
+              </div>
+            )}
+            {mode === "signin" && (
+              <p className="muted center">
+                <button
+                  type="button"
+                  className="link"
+                  onClick={() => {
+                    setMode("forgot");
+                    setError("");
+                    setMessage("");
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </p>
+            )}
           </>
         )}
 
@@ -256,13 +304,27 @@ export default function AuthPanel({
               ? "Save my profile"
               : mode === "signup"
                 ? "Create account"
-                : "Sign in"}
+                : mode === "forgot"
+                  ? "Send reset link"
+                  : "Sign in"}
         </button>
       </form>
 
       {!needsProfile && (
         <p className="muted center">
-          {mode === "signup" ? (
+          {mode === "forgot" ? (
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                setMode("signin");
+                setError("");
+                setMessage("");
+              }}
+            >
+              ← Back to sign in
+            </button>
+          ) : mode === "signup" ? (
             <>
               Already have an account?{" "}
               <button type="button" className="link" onClick={() => setMode("signin")}>
