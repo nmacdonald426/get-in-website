@@ -11,7 +11,7 @@ export const SERVICES = [
   "makeup",
   "barbering",
   "tattoos",
-  "injectors",
+  "injections",
 ] as const;
 
 export type Service = (typeof SERVICES)[number];
