@@ -28,16 +28,35 @@ export function distanceMiles(a: LatLng, b: LatLng): number {
  * cannot be found.
  */
 export async function geocodeAddress(address: string): Promise<LatLng | null> {
+  // Ask for several matches and pick a real town or city, not a county.
+  // "Fulton NY" on its own first returns Fulton County (near Albany),
+  // about 100 miles from the City of Fulton — that hid every real
+  // Fulton opening from search and put vague addresses in the wrong place.
   const url =
-    "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
+    "https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&countrycodes=us&q=" +
     encodeURIComponent(address);
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
   });
   if (!res.ok) return null;
-  const data: Array<{ lat: string; lon: string }> = await res.json();
+  const data: Array<{
+    lat: string;
+    lon: string;
+    addresstype?: string;
+    address?: { postcode?: string };
+  }> = await res.json();
   if (!data || data.length === 0) return null;
-  return { lat: Number(data[0].lat), lng: Number(data[0].lon) };
+  // A real town or city has a postcode; counties and regions do not.
+  // Fall back to a town/city/village type, then to the first result.
+  const place =
+    data.find((d) => Boolean(d.address?.postcode)) ??
+    data.find((d) =>
+      ["city", "town", "village", "hamlet", "municipality"].includes(
+        d.addresstype ?? ""
+      )
+    ) ??
+    data[0];
+  return { lat: Number(place.lat), lng: Number(place.lon) };
 }
 
 /** The visitor's current location, when they allow it. */
