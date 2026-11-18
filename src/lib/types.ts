@@ -48,6 +48,8 @@ export interface Opening {
   end_time: string; // HH:MM
   regular_price_cents: number;
   deal_price_cents: number | null;
+  /** True when the price is a starting price — shown with a + (e.g. $135+). */
+  price_is_starting_at: boolean;
   note: string;
   status: "open" | "claimed" | "cancelled" | "completed";
   providers?: Provider | null;
@@ -76,6 +78,14 @@ export function centsToDollars(cents: number): string {
 
 export function formatPrice(cents: number): string {
   return "$" + centsToDollars(cents);
+}
+
+/** "$135", or "$135+" when the price is a starting price that can go up. */
+export function displayPrice(
+  cents: number,
+  isStartingAt: boolean | null | undefined
+): string {
+  return formatPrice(cents) + (isStartingAt ? "+" : "");
 }
 
 /** Whole-number discount percent, e.g. 25 for 25% off. Null when no deal. */
