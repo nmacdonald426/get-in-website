@@ -12,8 +12,8 @@ import {
 import {
   SERVICES,
   discountPercent,
+  displayPrice,
   formatDate,
-  formatPrice,
   formatTime,
   isoPlusDays,
   todayIso,
@@ -382,10 +382,15 @@ export default function ClientSearch({ profile, onNeedSignIn }: ClientSearchProp
                   {opening.providerAddress} · {opening.distance.toFixed(1)} miles
                 </p>
                 <p className="price">
-                  <strong>{formatPrice(price)}</strong>{" "}
+                  <strong>
+                    {displayPrice(price, opening.price_is_starting_at)}
+                  </strong>{" "}
                   {opening.deal_price_cents !== null && (
                     <span className="old-price">
-                      {formatPrice(opening.regular_price_cents)}
+                      {displayPrice(
+                        opening.regular_price_cents,
+                        opening.price_is_starting_at
+                      )}
                     </span>
                   )}
                 </p>

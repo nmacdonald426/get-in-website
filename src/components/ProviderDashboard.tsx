@@ -6,9 +6,9 @@ import { geocodeAddress } from "../lib/geo";
 import {
   SERVICES,
   discountPercent,
+  displayPrice,
   dollarsToCents,
   formatDate,
-  formatPrice,
   formatTime,
   todayIso,
   type Claim,
@@ -48,6 +48,7 @@ export default function ProviderDashboard({ profile }: ProviderDashboardProps) {
   const [endTime, setEndTime] = useState("11:00");
   const [regularPrice, setRegularPrice] = useState("");
   const [dealPrice, setDealPrice] = useState("");
+  const [priceIsStartingAt, setPriceIsStartingAt] = useState(false);
   const [openingNote, setOpeningNote] = useState("");
   const [posting, setPosting] = useState(false);
 
@@ -194,6 +195,7 @@ export default function ProviderDashboard({ profile }: ProviderDashboardProps) {
         end_time: endTime,
         regular_price_cents: regularCents,
         deal_price_cents: dealCents,
+        price_is_starting_at: priceIsStartingAt,
         note: openingNote.trim(),
         status: "open",
       });
@@ -202,6 +204,7 @@ export default function ProviderDashboard({ profile }: ProviderDashboardProps) {
       setTitle("");
       setRegularPrice("");
       setDealPrice("");
+      setPriceIsStartingAt(false);
       setOpeningNote("");
       await loadAll();
     } catch (err) {
@@ -417,6 +420,17 @@ export default function ProviderDashboard({ profile }: ProviderDashboardProps) {
               </div>
             </div>
             <div className="field">
+              <label htmlFor="opening-starting-at">
+                <input
+                  id="opening-starting-at"
+                  type="checkbox"
+                  checked={priceIsStartingAt}
+                  onChange={(e) => setPriceIsStartingAt(e.target.checked)}
+                />{" "}
+                Starting price — show a + after the price (like $135+)
+              </label>
+            </div>
+            <div className="field">
               <label htmlFor="opening-note">Note for clients (optional)</label>
               <input
                 id="opening-note"
@@ -454,8 +468,8 @@ export default function ProviderDashboard({ profile }: ProviderDashboardProps) {
                       {formatDate(opening.date)} · {formatTime(opening.start_time)} –{" "}
                       {formatTime(opening.end_time)} ·{" "}
                       {opening.deal_price_cents !== null
-                        ? `${formatPrice(opening.deal_price_cents)} (was ${formatPrice(opening.regular_price_cents)})`
-                        : formatPrice(opening.regular_price_cents)}
+                        ? `${displayPrice(opening.deal_price_cents, opening.price_is_starting_at)} (was ${displayPrice(opening.regular_price_cents, opening.price_is_starting_at)})`
+                        : displayPrice(opening.regular_price_cents, opening.price_is_starting_at)}
                       {pct !== null && ` · ${pct}% OFF`}
                     </span>
                     <br />

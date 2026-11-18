@@ -5,7 +5,7 @@ import { getSupabase } from "../lib/supabase";
 import { directionsUrl } from "../lib/geo";
 import {
   formatDate,
-  formatPrice,
+  displayPrice,
   formatTime,
   type Claim,
   type Profile,
@@ -21,6 +21,7 @@ interface ClaimWithOpening extends Claim {
   openingStart: string;
   openingEnd: string;
   openingPrice: number;
+  openingStartingAt: boolean;
   providerName: string;
   providerAddress: string;
 }
@@ -36,7 +37,7 @@ export default function MyBookings({ profile }: MyBookingsProps) {
     const { data, error: fetchError } = await supabase
       .from("claims")
       .select(
-        "*, openings!inner(title, date, start_time, end_time, regular_price_cents, deal_price_cents, providers!inner(business_name, display_address))"
+        "*, openings!inner(title, date, start_time, end_time, regular_price_cents, deal_price_cents, price_is_starting_at, providers!inner(business_name, display_address))"
       )
       .eq("client_id", profile.id)
       .order("created_at", { ascending: false });
@@ -54,6 +55,7 @@ export default function MyBookings({ profile }: MyBookingsProps) {
           end_time: string;
           regular_price_cents: number;
           deal_price_cents: number | null;
+          price_is_starting_at: boolean;
           providers: { business_name: string; display_address: string };
         };
       }
@@ -67,6 +69,7 @@ export default function MyBookings({ profile }: MyBookingsProps) {
         openingEnd: row.openings.end_time,
         openingPrice:
           row.openings.deal_price_cents ?? row.openings.regular_price_cents,
+        openingStartingAt: row.openings.price_is_starting_at,
         providerName: row.openings.providers.business_name,
         providerAddress: row.openings.providers.display_address,
       }))
@@ -128,7 +131,9 @@ export default function MyBookings({ profile }: MyBookingsProps) {
               {formatTime(claim.openingEnd)}
             </p>
             <p className="price">
-              <strong>{formatPrice(claim.openingPrice)}</strong> ·{" "}
+              <strong>
+                {displayPrice(claim.openingPrice, claim.openingStartingAt)}
+              </strong> ·{" "}
               <span className={`status status-${claim.status}`}>{claim.status}</span>
             </p>
             <div className="btn-row">
