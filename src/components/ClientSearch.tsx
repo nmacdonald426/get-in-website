@@ -30,6 +30,8 @@ interface SearchResult extends Opening {
   distance: number;
   providerName: string;
   providerAddress: string;
+  providerPhone: string;
+  providerBookingUrl: string;
 }
 
 export default function ClientSearch({ profile, onNeedSignIn }: ClientSearchProps) {
@@ -58,7 +60,7 @@ export default function ClientSearch({ profile, onNeedSignIn }: ClientSearchProp
       const { data, error: fetchError } = await supabase
         .from("openings")
         .select(
-          "*, providers!inner(business_name, display_address, lat, lng, categories)"
+          "*, providers!inner(business_name, display_address, lat, lng, categories, phone, booking_url)"
         )
         .eq("status", "open")
         .gte("date", fromDate)
@@ -80,6 +82,8 @@ export default function ClientSearch({ profile, onNeedSignIn }: ClientSearchProp
           distance: miles,
           providerName: provider.business_name,
           providerAddress: provider.display_address || provider.address,
+          providerPhone: provider.phone ?? "",
+          providerBookingUrl: provider.booking_url ?? "",
         });
       }
       matched.sort(
@@ -381,6 +385,27 @@ export default function ClientSearch({ profile, onNeedSignIn }: ClientSearchProp
                 <p className="muted">
                   {opening.providerAddress} · {opening.distance.toFixed(1)} miles
                 </p>
+                {(opening.providerPhone || opening.providerBookingUrl) && (
+                  <p className="muted">
+                    {opening.providerPhone && (
+                      <a
+                        href={`tel:${opening.providerPhone.replace(/[^0-9+]/g, "")}`}
+                      >
+                        {opening.providerPhone}
+                      </a>
+                    )}
+                    {opening.providerPhone && opening.providerBookingUrl && " · "}
+                    {opening.providerBookingUrl && (
+                      <a
+                        href={opening.providerBookingUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Book online
+                      </a>
+                    )}
+                  </p>
+                )}
                 <p className="price">
                   <strong>
                     {displayPrice(price, opening.price_is_starting_at)}
