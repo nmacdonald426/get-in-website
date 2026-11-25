@@ -10,6 +10,7 @@ import {
   dollarsToCents,
   formatDate,
   formatTime,
+  normalizeUrl,
   todayIso,
   type Claim,
   type Opening,
@@ -36,6 +37,7 @@ export default function ProviderDashboard({ profile }: ProviderDashboardProps) {
   const [contactName, setContactName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [bookingUrl, setBookingUrl] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
@@ -73,6 +75,7 @@ export default function ProviderDashboard({ profile }: ProviderDashboardProps) {
       setContactName(found.contact_name);
       setPhone(found.phone);
       setAddress(found.address);
+      setBookingUrl(found.booking_url ?? "");
       setCategories(found.categories ?? []);
       setNote(found.note ?? "");
       const { data: openingData } = await supabase
@@ -132,6 +135,7 @@ export default function ProviderDashboard({ profile }: ProviderDashboardProps) {
         phone: phone.trim(),
         address: address.trim(),
         display_address: address.trim(),
+        booking_url: normalizeUrl(bookingUrl),
         lat: coords.lat,
         lng: coords.lng,
         categories,
@@ -294,6 +298,21 @@ export default function ProviderDashboard({ profile }: ProviderDashboardProps) {
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Street, town, state"
             />
+          </div>
+          <div className="field">
+            <label htmlFor="biz-booking-url">Booking website</label>
+            <input
+              id="biz-booking-url"
+              type="url"
+              value={bookingUrl}
+              onChange={(e) => setBookingUrl(e.target.value)}
+              placeholder="https://your-booking-page.com"
+            />
+            <p className="muted small">
+              Optional — the link clients use to book with you directly, like
+              your GlossGenius page. It shows on your openings, along with
+              your phone number.
+            </p>
           </div>
           <div className="field">
             <label>Services you offer</label>
