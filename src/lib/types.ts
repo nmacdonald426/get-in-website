@@ -35,6 +35,8 @@ export interface Provider {
   lng: number;
   categories: string[];
   note: string;
+  /** Optional booking-website link the provider posts, e.g. their GlossGenius page. Shown on their openings. */
+  booking_url: string;
   subscription_status: string;
 }
 
@@ -86,6 +88,14 @@ export function displayPrice(
   isStartingAt: boolean | null | undefined
 ): string {
   return formatPrice(cents) + (isStartingAt ? "+" : "");
+}
+
+/** Make sure a pasted booking link opens as a web address. Adds https:// when missing. */
+export function normalizeUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return "https://" + trimmed;
 }
 
 /** Whole-number discount percent, e.g. 25 for 25% off. Null when no deal. */
